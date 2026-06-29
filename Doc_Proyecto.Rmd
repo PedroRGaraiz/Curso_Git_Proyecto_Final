@@ -1,0 +1,30 @@
+---
+title: "Doc_Proyecto"
+author: "PedroRGaraiz"
+date: "2026-06-29"
+output: html_document
+---
+
+Cargamos los paquetes que vamos a usar:
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(tidyr)
+```
+
+## Datos
+
+Usaremos las base de datos 'vehiclethefts_tbl_df' disponible en el paquete 'crimedatasets', que contiene información sobre robos vehiculares en la ciudad de Nueva York entre 2014 y 2017.
+
+Para obterner los datos descargamos y cargamos:
+
+```{r eval=FALSE, echo=TRUE}
+install.packages("crimedatasets")
+library(crimedatasets)
+```
+
+### Observaciones iniciales
+
+
