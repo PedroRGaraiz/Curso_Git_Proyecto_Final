@@ -1,11 +1,15 @@
 ---
-title: "Doc_Proyecto"
-author: "PedroRGaraiz"
+title: "Proyecto Final"
+author: "Pedro Ramírez Garaiz"
 date: "2026-06-29"
-output: html_document
+output: 
+  html_document:
+    theme: darkly
+    highlight: breezedark
+    toc: true
 ---
 
-Cargamos los paquetes que vamos a usar:
+Antes de empezar cargamos los paquetes que vamos a usar:
 
 ```{r message=FALSE, warning=FALSE}
 library(dplyr)
@@ -16,15 +20,137 @@ library(tidyr)
 
 ## Datos
 
-Usaremos las base de datos 'vehiclethefts_tbl_df' disponible en el paquete 'crimedatasets', que contiene información sobre robos vehiculares en la ciudad de Nueva York entre 2014 y 2017.
+Usaremos las base de datos 'vehiclethefts_tbl_df' disponible en el paquete 'crimedatasets', que contiene información temporal y geográfica sobre robos vehiculares en la ciudad de Nueva York entre 2014 y 2017.
 
 Para obterner los datos descargamos y cargamos:
 
 ```{r eval=FALSE, echo=TRUE}
 install.packages("crimedatasets")
+```
+
+```{r}
 library(crimedatasets)
 ```
 
 ### Observaciones iniciales
 
+Para una mirada rápida a la tabla de datos:
 
+```{r}
+head(vehiclethefts_tbl_df)
+```
+
+Vemos el tamaño de la base de datos
+
+```{r}
+dim(vehiclethefts_tbl_df)
+```
+
+Tenemos observaciones de 9 variables para 35746 casos de robo vehicular, estas variables son:
+
+```{r}
+names(vehiclethefts_tbl_df)
+```
+
+"uid" es el número de identificación de cada incidente.
+
+"date_start" y "date_end" corresponden al intervalo de tiempo en que el robo pudo ocurrir, "date_single" es el punto medio.
+
+"longitude" y "latitude" dan las coordenadas del lugar del robo.
+
+"location_type" describe el lugar del robo (calle, escuela, gasolinera, etc)
+
+```{r}
+unique(vehiclethefts_tbl_df$location_type)
+```
+
+"location_category" asigna una categoría al lugar del robo (comercial, gubernamental, residencial, etc)
+
+```{r}
+unique(vehiclethefts_tbl_df$location_category)
+```
+
+## Datos faltantes
+
+Para saber si existen hoyos en los datos
+
+```{r}
+colSums(is.na(vehiclethefts_tbl_df))
+```
+
+Vemos que existen 2852 incidentes que no especifican una última fecha y hora en que podrían haber ocurrido, mientras que 7 no tienen información cualitativa sobre la ubicación. Filtraremos estos datos cuando sea relevante.
+
+# I. ¿Que clase lugares son los más peligrosos?
+
+Preparamos los, seleccionando las variables relevantes y filtrando los casos que no contienen esta información
+
+```{r}
+info_loc_qual <- vehiclethefts_tbl_df %>% 
+  select(location_type, location_category) %>% 
+  filter(!is.na(location_type)) %>% 
+  filter(!is.na(location_category))
+```
+
+Realizamos el conteo de incidentes por categoría y tipo de lugar
+
+```{r}
+#Por categoría
+robos_loc_cat <- info_loc_qual %>% 
+  group_by(location_category) %>% 
+  summarise(thefts = n()) %>% 
+  arrange(desc(thefts))
+
+#Por tipo
+robos_loc_typ <- info_loc_qual %>% 
+  group_by(location_type) %>% 
+  summarise(thefts = n()) %>% 
+  arrange(desc(thefts))
+```
+
+Graficamos:
+
+```{r echo=FALSE}
+# Creamos tema para la gráficas
+
+theme_custom <- theme_minimal() + theme(
+  plot.title = element_text(face = "bold", size = 14),
+  plot.subtitle = element_text(size = 11),
+  axis.title = element_text(face = "bold"))
+  
+```
+
+```{r}
+robos_loc_cat %>%
+  
+  mutate(location_category = reorder(location_category, thefts)) %>%
+  
+  ggplot( aes(x = location_category, y = thefts, fill = thefts ) ) +
+  
+  labs(title = "Robos totales por categoría", x = "Categoría", y = "Robos totales", fill = "" ) +
+  
+  geom_col() + coord_flip() +
+  
+  scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
+  
+```
+
+Es evidente que la calle es mucho más peligrosa que cualquier otro lugar. Podemos filtrar estos casos para comparar el resto de categorías con más detalle
+
+```{r}
+robos_loc_cat %>%
+  
+  #Añadimos una linea al inicio para filtrar la categoría "street"
+  filter(location_category != "street") %>% 
+  
+  mutate(location_category = reorder(location_category, thefts)) %>%
+  
+  ggplot( aes(x = location_category, y = thefts, fill = thefts ) ) +
+  
+  labs(title = "Robos totales por categoría", x = "Categoría", y = "Robos totales", fill = "" ) +
+  
+  geom_col() + coord_flip() +
+  
+  scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
+  
+
+```
