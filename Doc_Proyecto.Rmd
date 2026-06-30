@@ -70,7 +70,7 @@ unique(vehiclethefts_tbl_df$location_type)
 unique(vehiclethefts_tbl_df$location_category)
 ```
 
-## Datos faltantes
+### Datos faltantes
 
 Para saber si existen hoyos en los datos
 
@@ -91,18 +91,11 @@ info_loc_qual <- vehiclethefts_tbl_df %>%
   filter(!is.na(location_category))
 ```
 
-Realizamos el conteo de incidentes por categoría y tipo de lugar
+Realizamos el conteo de incidentes por categoría de lugar
 
 ```{r}
-#Por categoría
 robos_loc_cat <- info_loc_qual %>% 
   group_by(location_category) %>% 
-  summarise(thefts = n()) %>% 
-  arrange(desc(thefts))
-
-#Por tipo
-robos_loc_typ <- info_loc_qual %>% 
-  group_by(location_type) %>% 
   summarise(thefts = n()) %>% 
   arrange(desc(thefts))
 ```
@@ -123,13 +116,9 @@ theme_custom <- theme_minimal() + theme(
 robos_loc_cat %>%
   
   mutate(location_category = reorder(location_category, thefts)) %>%
-  
   ggplot( aes(x = location_category, y = thefts, fill = thefts ) ) +
-  
-  labs(title = "Robos totales por categoría", x = "Categoría", y = "Robos totales", fill = "" ) +
-  
+  labs(title = "Robos totales por categoria", x = "Categoria", y = "Robos totales", fill = "" ) +
   geom_col() + coord_flip() +
-  
   scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
   
 ```
@@ -143,14 +132,89 @@ robos_loc_cat %>%
   filter(location_category != "street") %>% 
   
   mutate(location_category = reorder(location_category, thefts)) %>%
-  
   ggplot( aes(x = location_category, y = thefts, fill = thefts ) ) +
-  
-  labs(title = "Robos totales por categoría", x = "Categoría", y = "Robos totales", fill = "" ) +
-  
+  labs(title = "Robos totales por categoria (Salvo Calle)", x = "Categoria", y = "Robos totales", fill = "" ) +
   geom_col() + coord_flip() +
-  
   scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
   
 
+```
+
+# II. ¿Que reflejan las ubicaciones de los robos sobre la geografía de Nueva York?
+
+Al graficar cada observación respecto a su latitud y longitud se dibuja un mapa de todos los robos, donde un color más intenso indica una mayor densidad de casos.
+
+```{r}
+ggplot(data = vehiclethefts_tbl_df, 
+       aes(x = longitude, y = latitude)) +
+  labs(x = "Longitud", y = "Latitud") +
+  geom_point(alpha = 0.1, color = "red") + coord_fixed() + theme_custom
+```
+
+![](images/clipboard-1246364190.png){width="17.1333333cm"}
+
+Obtenemos un dibujo bastante acertado de la forma de Nueva York. Lo hoyos son principalmente a al agua, areas verdes y pequeñas islas, donde naturalmente no hay muchos vehículos que robar. Por ejemplo, podemos reconocer que el hoyo rectángular en la isla superior (Manhattan) es Central Park.
+
+En cuanto a densidad, observamos una menor tasa de robos en las zona más suburbana como el este de Queens y sobre todo Staten Island, que tiene la reputación de ser el distrito (borough) más seguro.
+
+# III. ¿El tipo de crimen es diferente en Staten Island?
+
+Como ya vimos, en Staten Island ocurrieron menor robos que en el resto de la ciudad, lo cual es consistente con su cáracter suburbano. ¿Será que esto también afecta los tipos de lugares en que los crimenes que ocurren?
+
+Usando el mapa que generamos sabemos que Staten Island queda separada del resto de la ciudad por la linea de longitud -74.05, así podemos partir nuestros datos para el análisis:
+
+```{r}
+#A la izquierda queda Staten Island
+staten_island <- vehiclethefts_tbl_df %>% 
+  filter(longitude < -74.05)
+
+#A la derecha queda lo demás
+nyc_proper <- vehiclethefts_tbl_df %>% 
+  filter(longitude > -74.05)
+
+```
+
+Aplicamos el mismo proceso que en la primera pregunta, ahora solo a los datos de Staten Island. Queda condensado de la siguiente manera
+
+```{r}
+ staten_island %>%
+  
+  #Eliminamos casos sin información de clase de lugar
+  filter(!is.na(location_category)) %>% 
+  
+  #Contamos los casos por categoría
+  group_by(location_category) %>% 
+  summarise(thefts = n()) %>% 
+  arrange(desc(thefts)) %>% 
+   
+  #Generamos la gráfica
+  mutate(location_category = reorder(location_category, thefts)) %>%
+  ggplot( aes(x = location_category, y = thefts, fill = thefts ) ) +
+  labs(title = "Robos totales por categoria en Staten Island", x = "Categoria", y = "Robos totales", fill = "" ) +
+  geom_col() + coord_flip() +
+  scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
+```
+
+Efectivamente, los robos en residencias representan porcentaje mucho mayor comparado con los resultados para toda la ciudad.
+
+Por otro lado los resultados fuera de Staten Island son practicamente idénticos a los originales
+
+```{r}
+ nyc_proper %>%
+  
+  #Eliminamos casos sin información de clase de lugar
+  filter(!is.na(location_category)) %>% 
+  
+  #Contamos los casos por categoría
+  group_by(location_category) %>% 
+  summarise(thefts = n()) %>% 
+  arrange(desc(thefts)) %>% 
+  
+  #Generamos la gráfica
+  mutate(location_category = reorder(location_category, thefts)) %>%
+  ggplot( aes(x = location_category, y = thefts, fill = thefts ) ) +
+  labs(title = "Robos totales por categoria", x = "Categoria", y = "Robos totales", fill = "" ) +
+  geom_col() + coord_flip() +
+  scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
+ 
 ```
