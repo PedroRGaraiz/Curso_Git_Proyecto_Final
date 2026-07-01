@@ -155,7 +155,7 @@ ggplot(data = vehiclethefts_tbl_df,
 
 Obtenemos un dibujo bastante acertado de la forma de Nueva York. Lo hoyos son principalmente a al agua, areas verdes y pequeñas islas, donde naturalmente no hay muchos vehículos que robar. Por ejemplo, podemos reconocer que el hoyo rectángular en la isla superior (Manhattan) es Central Park.
 
-En cuanto a densidad, observamos una menor tasa de robos en las zona más suburbana como el este de Queens y sobre todo Staten Island, que tiene la reputación de ser el distrito (borough) más seguro.
+En cuanto a densidad, observamos una menor tasa de robos en zonas más suburbana como el este de Queens y sobre todo Staten Island (la isla abajo a la izquierda) que tiene la reputación de ser el distrito (borough) más seguro.
 
 # III. ¿El tipo de crimen es diferente en Staten Island?
 
@@ -174,7 +174,7 @@ nyc_proper <- vehiclethefts_tbl_df %>%
 
 ```
 
-Aplicamos el mismo proceso que en la primera pregunta, ahora solo a los datos de Staten Island. Queda condensado de la siguiente manera
+Aplicamos el mismo proceso que en la primera pregunta, ahora solo a los datos de Staten Island. Queda condensado de la siguiente manera:
 
 ```{r}
  staten_island %>%
@@ -218,3 +218,104 @@ Por otro lado los resultados fuera de Staten Island son practicamente idénticos
   scale_fill_gradient(low = "#60BA00", high = "#BA3000" ) + theme_custom
  
 ```
+
+# IV. ¿Los ladrones de autos descansan el fin de semana?
+
+Cada robo tiene en los datos una aproximación de la fecha en que ocurrió, de la cual quisieramos extraer el día de la semana. Estas fechas son el punto medio del intervalo de tiempo en que pudo darse el robo y algunos duran años. Por lo tanto, para tener confianza sobre el día de la semana que asignamos a cada caso usaremos solo aquellos que ocurrieron dentro de un intervalo de máximo 24 horas.
+
+Para empezar el análisis seleccionamos y limpiamos los datos relevantes. Luego calculamos los intervalos para quedarnos solo con los que nos sirven
+
+```{r}
+info_semanal <- vehiclethefts_tbl_df %>% 
+  
+  #tomamos las columnas relevantes
+  select(date_single, date_start, date_end) %>% 
+  # Limpiamos las filas incompletas
+  filter(!is.na(date_end)) %>% 
+  
+  #Calculamos los intervalos, medidos en días
+  mutate(interval = as.numeric(difftime(date_end, date_start, units = "days"))) %>% 
+  #Eliminamos los mayores a 1 día
+  filter(interval < 1)
+
+nrow(info_semanal)
+
+```
+
+Al final perdemos menos de un tercio de los datos, con 24871 de los 35746 casos, bastantes para obtener buenas conclusiones.
+
+Solo falta asignar los día de la semana y graficar:
+
+```{r}
+info_semanal %>% 
+  #Asignamos días de la semana
+  mutate(weekday = weekdays(as.POSIXct(date_single))) %>%
+  #Reordenamos por día de la semana
+  mutate(weekday = factor(weekday, levels = c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'))) %>% 
+  #Generamos la gráfica
+  ggplot(aes(x=weekday, fill=weekday)) +
+  geom_bar() + geom_hline(yintercept =  3401, linewidth = 1) +
+  labs(title = "Robos vehiculares por dia de la semana", x="",y="",fill="") +
+  theme_custom
+
+```
+
+Resulta que obtenemos una tasa de robos ligeramente menor los domingos, mientras que los sábados no muestran mucha diferecia con los demás días.
+
+# V. ¿Cuando toman sus vacaciones?
+
+Parece que los ladrones trabajan toda la semana, pero ¿será que al menos toman vacaciones de verano?. Para saberlo graficaremos la tasa mensual de robos para cada uno de los cuatro años disponibles.
+
+Primero, como hicimos para la pregunta anterior, filtraremos los incidentes con intervalo posible muy amplio. Esta vez tomaremos una semana de tolerancia:
+
+```{r}
+
+info_mensual_limpia <- vehiclethefts_tbl_df %>% 
+  
+  #tomamos las columnas relevantes
+  select(date_single, date_start, date_end) %>% 
+  # Limpiamos las filas incompletas
+  filter(!is.na(date_end)) %>% 
+  #Calculamos los intervalos, medidos en semanas
+  mutate(interval = as.numeric(difftime(date_end, date_start, units = "weeks"))) %>% 
+  #Eliminamos los mayores a 1 día
+  filter(interval < 1)
+         
+```
+
+Luego especificamos en nuestros datos el mes y año de cada incidente
+
+```{r}
+info_mensual <- info_mensual_limpia %>%
+  #Solo nos importa la fecha aproximada
+  select(date_single) %>%
+  #Transformamos a formato de fecha
+  mutate(date_single = as.POSIXct(date_single) ) %>%
+  #Extraemos Año-Mes, Año y Mes
+  mutate(year_month = format(date_single, format="%Y-%m"),
+         year = format(date_single, format="%Y"), 
+         month = format(date_single, format="%m"))
+```
+
+Contamos los incidentes por cada mes de cada año y graficamos
+
+```{r message=FALSE, warning=FALSE}
+
+#Conteo
+info_mensual %>%
+  group_by(year_month) %>%
+  summarise(year = year, month = month, thefts = n()) %>%
+  arrange(desc(thefts)) %>%
+  
+#Gráfica
+ggplot( aes(x = factor(month), y = thefts, group=year, color = as.character(year))) +
+  
+labs(title = "Robos acumulados por mes", x = "Mes", y = "Robos totales", color = "" )  +
+  
+geom_line(linewidth = 1.5) + theme_custom
+
+```
+
+Lejos de salir de vacaciones en verano, los ladrones alcanzan su pico justamente entre julio y septiembre. Por otro lado los primeros meses del año muestran una baja considerable en el número de robos.
+
+Como última observacón interesante cabe notar que en general hubo una reducción en el crimen vehicular en cada año comparado con el anterior.
